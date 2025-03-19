@@ -12,6 +12,6 @@
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
-, "app/(tabs)/screens/GraphsScreen.tss"  ]
+    "expo-env.d.ts",
+  ]
 }
