@@ -1,113 +1,148 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { SafeAreaView, TouchableOpacity } from "react-native";
+import { WebView } from "react-native-webview"; // Import WebView
 import colors from "../colors.json";
 
 import { View, Text, StyleSheet } from "react-native";
 
 export default function ControlScreen() {
   const [activeButton, setActiveButton] = useState("");
+  const [ws, setWs] = useState<WebSocket | null>(null);
+
+  // Establish WebSocket connection
+  useEffect(() => {
+    const socket = new WebSocket("ws://192.168.136.106:81"); // Replace with your WebSocket server URL
+    setWs(socket);
+
+    socket.onopen = () => {
+      console.log("WebSocket connection established");
+    };
+
+    socket.onclose = () => {
+      console.log("WebSocket connection closed");
+    };
+
+    socket.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    return () => {
+      socket.close();
+    };
+  }, []);
 
   const handlePress = (buttonName: string) => {
-    if (buttonName === "stop") {
-      setActiveButton("stop");
-      console.log("Stopped");
-    } else if (buttonName === "sprinkle") {
-      setActiveButton("sprinkle");
-      console.log("Sprinkling...");
+    setActiveButton(buttonName);
+
+    // Send command via WebSocket
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(buttonName);
+      console.log(`Command sent: ${buttonName}`);
     } else {
-      setActiveButton(buttonName);
-      console.log(`Clicked ${buttonName}`);
+      console.error("WebSocket is not connected");
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Video Stream */}
+      <View style={{ alignItems: "center", justifyContent: "center", marginVertical: 20 }}>
+      <iframe src="http://192.168.136.106/stream" height={'300px'} width={'500px'} />
+      </View>
+      {/* <View style={styles.videoContainer}>
+      <WebView
+        source={{ uri: "http://192.168.136.106/stream" }} // Replace with your video stream URL
+        style={styles.videoStream}
+      />
+      </View> */}
+
+      {/* Control Panel */}
       <View style={styles.controlPanel}>
-        <Text style={styles.title}>Control Panel</Text>
+      <Text style={styles.title}>Control Panel</Text>
 
-        {/* Top Button */}
-        <View style={styles.topButtonContainer}>
-          <TouchableOpacity
-            style={[
-              styles.directionButton,
-              styles.buttonColor,
-              activeButton === "top" && styles.activeButton,
-            ]}
-            onPress={() => handlePress("top")}
-          >
-            <Icon name="arrow-up-bold" size={30} color="white" />
-          </TouchableOpacity>
-        </View>
+      {/* Forward Button */}
+      <View style={styles.topButtonContainer}>
+        <TouchableOpacity
+        style={[
+          styles.directionButton,
+          styles.buttonColor,
+          activeButton === "top" && styles.activeButton,
+        ]}
+        onPress={() => handlePress("W")}
+        >
+        <Icon name="arrow-up-bold" size={30} color="white" />
+        </TouchableOpacity>
+      </View>
 
-        {/* Middle Row Buttons */}
-        <View style={styles.middleButtonsRow}>
-          <TouchableOpacity
-            style={[
-              styles.directionButton,
-              styles.buttonColor,
-              activeButton === "left" && styles.activeButton,
-            ]}
-            onPress={() => handlePress("left")}
-          >
-            <Icon name="arrow-left-bold" size={30} color="white" />
-          </TouchableOpacity>
+      {/* Middle Row Buttons */}
+      <View style={styles.middleButtonsRow}>
+        <TouchableOpacity
+        style={[
+          styles.directionButton,
+          styles.buttonColor,
+          activeButton === "left" && styles.activeButton,
+        ]}
+        onPress={() => handlePress("A")}
+        >
+        <Icon name="arrow-left-bold" size={30} color="white" />
+        </TouchableOpacity>
 
-          {/* Spacer */}
-          <View style={styles.buttonSpacer} />
+        {/* Spacer */}
+        <View style={styles.buttonSpacer} />
 
-          <TouchableOpacity
-            style={[
-              styles.directionButton,
-              styles.buttonColor,
-              activeButton === "right" && styles.activeButton,
-            ]}
-            onPress={() => handlePress("right")}
-          >
-            <Icon name="arrow-right-bold" size={30} color="white" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+        style={[
+          styles.directionButton,
+          styles.buttonColor,
+          activeButton === "right" && styles.activeButton,
+        ]}
+        onPress={() => handlePress("D")}
+        >
+        <Icon name="arrow-right-bold" size={30} color="white" />
+        </TouchableOpacity>
+      </View>
 
-        {/* Bottom Button */}
-        <View style={styles.bottomButtonContainer}>
-          <TouchableOpacity
-            style={[
-              styles.directionButton,
-              styles.buttonColor,
-              activeButton === "bottom" && styles.activeButton,
-            ]}
-            onPress={() => handlePress("bottom")}
-          >
-            <Icon name="arrow-down-bold" size={30} color="white" />
-          </TouchableOpacity>
-        </View>
+      {/* Backward Button */}
+      <View style={styles.bottomButtonContainer}>
+        <TouchableOpacity
+        style={[
+          styles.directionButton,
+          styles.buttonColor,
+          activeButton === "bottom" && styles.activeButton,
+        ]}
+        onPress={() => handlePress("S")}
+        >
+        <Icon name="arrow-down-bold" size={30} color="white" />
+        </TouchableOpacity>
+      </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionButtonsContainer}>
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              styles.sprinkleButton,
-              activeButton === "sprinkle" && styles.activeButton,
-            ]}
-            onPress={() => handlePress("sprinkle")}
-          >
-            <Icon name="water" size={24} color="white" />
-            <Text style={styles.buttonText}>Sprinkle</Text>
-          </TouchableOpacity>
+      {/* Action Buttons */}
+      <View style={styles.actionButtonsContainer}>
+        <TouchableOpacity
+        style={[
+          styles.actionButton,
+          styles.sprinkleButton,
+          activeButton === "sprinkle" && styles.activeButton,
+        ]}
+        onPress={() => handlePress("P")}
+        >
+        <Icon name="water" size={24} color="white" />
+        <Text style={styles.buttonText}>Sprinkle</Text>
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              styles.stopButton,
-              activeButton === "stop" && styles.activeButton,
-            ]}
-            onPress={() => handlePress("stop")}
-          >
-            <Icon name="stop-circle" size={24} color="white" />
-            <Text style={styles.buttonText}>Stop</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+        style={[
+          styles.actionButton,
+          styles.stopButton,
+          activeButton === "stop" && styles.activeButton,
+        ]}
+        onPress={() => handlePress("X")}
+        >
+        <Icon name="stop-circle" size={24} color="white" />
+        <Text style={styles.buttonText}>Stop</Text>
+        </TouchableOpacity>
+      </View>
       </View>
     </SafeAreaView>
   );
@@ -120,6 +155,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgcolor,
     color: colors.fgcolor,
   },
+  videoContainer: {
+    height: 200, // Adjust height as needed
+    width: "100%",
+    backgroundColor: "black",
+  },
+  videoStream: {
+    flex: 1,
+  },
   title: {
     fontSize: 24,
     fontWeight: "bold",
@@ -127,7 +170,6 @@ const styles = StyleSheet.create({
     marginVertical: 20,
     color: colors.fgcolor,
   },
-
   controlPanel: {
     flex: 1,
     padding: 20,
