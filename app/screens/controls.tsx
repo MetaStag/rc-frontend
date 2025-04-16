@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { SafeAreaView, TouchableOpacity } from "react-native";
 import { WebView } from "react-native-webview"; // Import WebView
+import Video from "react-native-video";
 import colors from "../colors.json";
 
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, Dimensions, StyleSheet } from "react-native";
 
 export default function ControlScreen() {
   const [activeButton, setActiveButton] = useState("");
@@ -47,102 +48,102 @@ export default function ControlScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {/* Video Stream */}
-      <View style={{ alignItems: "center", justifyContent: "center", marginVertical: 20 }}>
+      {/* <View style={{ alignItems: "center", justifyContent: "center", marginVertical: 20 }}>
       <iframe src="http://192.168.136.106/stream" height={'300px'} width={'500px'} />
-      </View>
-      {/* <View style={styles.videoContainer}>
-      <WebView
-        source={{ uri: "http://192.168.136.106/stream" }} // Replace with your video stream URL
-        style={styles.videoStream}
-      />
       </View> */}
+      <View style={styles.videoContainer}>
+        <WebView
+          source={{ uri: "http://192.168.136.106/stream" }} // Replace with your video stream URL
+          style={styles.videoStream}
+        />
+      </View>
 
       {/* Control Panel */}
       <View style={styles.controlPanel}>
-      <Text style={styles.title}>Control Panel</Text>
+        <Text style={styles.title}>Control Panel</Text>
 
-      {/* Forward Button */}
-      <View style={styles.topButtonContainer}>
-        <TouchableOpacity
-        style={[
-          styles.directionButton,
-          styles.buttonColor,
-          activeButton === "top" && styles.activeButton,
-        ]}
-        onPress={() => handlePress("W")}
-        >
-        <Icon name="arrow-up-bold" size={30} color="white" />
-        </TouchableOpacity>
-      </View>
+        {/* Forward Button */}
+        <View style={styles.topButtonContainer}>
+          <TouchableOpacity
+            style={[
+              styles.directionButton,
+              styles.buttonColor,
+              activeButton === "top" && styles.activeButton,
+            ]}
+            onPress={() => handlePress("W")}
+          >
+            <Icon name="arrow-up-bold" size={30} color="white" />
+          </TouchableOpacity>
+        </View>
 
-      {/* Middle Row Buttons */}
-      <View style={styles.middleButtonsRow}>
-        <TouchableOpacity
-        style={[
-          styles.directionButton,
-          styles.buttonColor,
-          activeButton === "left" && styles.activeButton,
-        ]}
-        onPress={() => handlePress("A")}
-        >
-        <Icon name="arrow-left-bold" size={30} color="white" />
-        </TouchableOpacity>
+        {/* Middle Row Buttons */}
+        <View style={styles.middleButtonsRow}>
+          <TouchableOpacity
+            style={[
+              styles.directionButton,
+              styles.buttonColor,
+              activeButton === "left" && styles.activeButton,
+            ]}
+            onPress={() => handlePress("A")}
+          >
+            <Icon name="arrow-left-bold" size={30} color="white" />
+          </TouchableOpacity>
 
-        {/* Spacer */}
-        <View style={styles.buttonSpacer} />
+          {/* Spacer */}
+          <View style={styles.buttonSpacer} />
 
-        <TouchableOpacity
-        style={[
-          styles.directionButton,
-          styles.buttonColor,
-          activeButton === "right" && styles.activeButton,
-        ]}
-        onPress={() => handlePress("D")}
-        >
-        <Icon name="arrow-right-bold" size={30} color="white" />
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={[
+              styles.directionButton,
+              styles.buttonColor,
+              activeButton === "right" && styles.activeButton,
+            ]}
+            onPress={() => handlePress("D")}
+          >
+            <Icon name="arrow-right-bold" size={30} color="white" />
+          </TouchableOpacity>
+        </View>
 
-      {/* Backward Button */}
-      <View style={styles.bottomButtonContainer}>
-        <TouchableOpacity
-        style={[
-          styles.directionButton,
-          styles.buttonColor,
-          activeButton === "bottom" && styles.activeButton,
-        ]}
-        onPress={() => handlePress("S")}
-        >
-        <Icon name="arrow-down-bold" size={30} color="white" />
-        </TouchableOpacity>
-      </View>
+        {/* Backward Button */}
+        <View style={styles.bottomButtonContainer}>
+          <TouchableOpacity
+            style={[
+              styles.directionButton,
+              styles.buttonColor,
+              activeButton === "bottom" && styles.activeButton,
+            ]}
+            onPress={() => handlePress("S")}
+          >
+            <Icon name="arrow-down-bold" size={30} color="white" />
+          </TouchableOpacity>
+        </View>
 
-      {/* Action Buttons */}
-      <View style={styles.actionButtonsContainer}>
-        <TouchableOpacity
-        style={[
-          styles.actionButton,
-          styles.sprinkleButton,
-          activeButton === "sprinkle" && styles.activeButton,
-        ]}
-        onPress={() => handlePress("P")}
-        >
-        <Icon name="water" size={24} color="white" />
-        <Text style={styles.buttonText}>Sprinkle</Text>
-        </TouchableOpacity>
+        {/* Action Buttons */}
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              styles.sprinkleButton,
+              activeButton === "sprinkle" && styles.activeButton,
+            ]}
+            onPress={() => handlePress("P")}
+          >
+            <Icon name="water" size={24} color="white" />
+            <Text style={styles.buttonText}>Sprinkle</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-        style={[
-          styles.actionButton,
-          styles.stopButton,
-          activeButton === "stop" && styles.activeButton,
-        ]}
-        onPress={() => handlePress("X")}
-        >
-        <Icon name="stop-circle" size={24} color="white" />
-        <Text style={styles.buttonText}>Stop</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              styles.stopButton,
+              activeButton === "stop" && styles.activeButton,
+            ]}
+            onPress={() => handlePress("X")}
+          >
+            <Icon name="stop-circle" size={24} color="white" />
+            <Text style={styles.buttonText}>Stop</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -241,5 +242,9 @@ const styles = StyleSheet.create({
     color: colors.fgcolor,
     fontWeight: "bold",
     marginLeft: 8,
+  },
+  video: {
+    width: Dimensions.get("window").width * 0.9,
+    height: 200,
   },
 });
