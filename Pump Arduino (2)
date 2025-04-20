@@ -1,0 +1,22 @@
+#define relayPin 12  // Pin for relay control
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(relayPin, OUTPUT);
+  digitalWrite(relayPin, HIGH);  // Relay OFF initially (active LOW)
+}
+
+void loop() {
+  if (Serial.available()) {
+    char command = Serial.read();  // Read command from Arduino 1
+
+    if (command == 'P') {
+      digitalWrite(relayPin, LOW); // Turn on pump (active LOW logic)
+      Serial.println("Pump ON");
+    }
+    else if (command == 'K') {
+      digitalWrite(relayPin, HIGH); // Turn off pump (active LOW logic)
+      Serial.println("Pump OFF");
+    }
+  }
+}
