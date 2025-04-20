@@ -1,0 +1,259 @@
+#include "esp_camera.h"
+#include <WiFi.h>
+#include <WebServer.h>
+#include <WebSocketsServer_Generic.h>
+#include <ArduinoJson.h>
+
+// Camera pins for ESP32-CAM AI-THINKER
+#define PWDN_GPIO_NUM     32
+#define RESET_GPIO_NUM    -1
+#define XCLK_GPIO_NUM      0
+#define SIOD_GPIO_NUM     26
+#define SIOC_GPIO_NUM     27
+#define Y9_GPIO_NUM       35
+#define Y8_GPIO_NUM       34
+#define Y7_GPIO_NUM       39
+#define Y6_GPIO_NUM       36
+#define Y5_GPIO_NUM       21
+#define Y4_GPIO_NUM       19
+#define Y3_GPIO_NUM       18
+#define Y2_GPIO_NUM        5
+#define VSYNC_GPIO_NUM    25
+#define HREF_GPIO_NUM     23
+#define PCLK_GPIO_NUM     22
+
+// Wi-Fi credentials
+const char* ssid = "Madhav";
+const char* password = "madhavlmao";
+
+// Initialize servers
+WebServer server(80);
+WebSocketsServer webSocket = WebSocketsServer(81);
+
+#define BAUD_RATE 115200
+
+const char index_html[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ESP32-CAM Control Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Arial; text-align: center; margin:0px auto; padding: 0px; }
+    .container { display: flex; flex-direction: column; margin: 0 auto; padding: 20px; }
+    .video-container { margin-bottom: 20px; }
+    #videoStream { width: 100%; max-width: 640px; }
+    .control-container { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+    button { padding: 10px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+    button:hover { background-color: #45a049; }
+    #log { margin-top: 20px; border: 1px solid #ccc; padding: 10px; height: 150px; overflow-y: scroll; text-align: left; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ESP32-CAM Control Panel</h1>
+    <div class="video-container">
+      <img id="videoStream" src="" alt="Video Stream">
+    </div>
+    <div class="control-container">
+      <button id="forward">Forward</button>
+      <button id="backward">Backward</button>
+      <button id="left">Left</button>
+      <button id="right">Right</button>
+      <button id="stop">Stop</button>
+      <button id="custom">Send Custom Command</button>
+      <input type="text" id="customCommand" placeholder="Enter custom command">
+    </div>
+
+    <div id="log">Connection logs will appear here...</div>
+  </div>
+
+  <script>
+    var gateway = ws://${window.location.hostname}:81/;
+    var websocket;
+
+    window.addEventListener('load', () => {
+      websocket = new WebSocket(gateway);
+      websocket.onopen = () => log('WebSocket connected');
+      websocket.onclose = () => {
+        log('WebSocket disconnected, retrying...');
+        setTimeout(() => location.reload(), 2000);
+      };
+      websocket.onmessage = e => log('Received: ' + e.data);
+      initButtons();
+      startVideoStream();
+    });
+
+    function initButtons() {
+      document.getElementById('forward').addEventListener('click', function() { sendCommand('W'); });
+      document.getElementById('backward').addEventListener('click', function() { sendCommand('S'); });
+      document.getElementById('left').addEventListener('click', function() { sendCommand('A'); });
+      document.getElementById('right').addEventListener('click', function() { sendCommand('D'); });
+      document.getElementById('stop').addEventListener('click', function() { sendCommand('X'); });
+      document.getElementById('custom').addEventListener('click', function() {
+        const cmd = document.getElementById('customCommand').value.trim();
+        if(cmd) {
+          sendCommand(cmd);
+          document.getElementById('customCommand').value = '';
+        } else {
+          log('Error in sending custom Command');
+        }
+      });
+    }
+
+    function sendCommand(cmd) {
+      if (websocket.readyState === WebSocket.OPEN) {
+        websocket.send(cmd);
+        log('Sent: ' + cmd);
+      }
+    }
+
+    function sendCustomCommand() {
+      const cmd = document.getElementById("customCommand").value.trim();
+      if (cmd) {
+        sendCommand(cmd);
+        document.getElementById("customCommand").value = '';
+      }
+    }
+
+    function log(message) {
+      const logDiv = document.getElementById("log");
+      logDiv.innerHTML += <div>${message}</div>;
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    function startVideoStream() {
+      document.getElementById('videoStream').src = window.location.protocol + '//' + window.location.hostname + ':80/stream';
+    }
+  </script>
+</body>
+</html>
+)rawliteral";
+
+// Handle WebSocket events
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+  switch(type) {
+    case WStype_DISCONNECTED:
+      Serial.printf("[%u] Disconnected!\n", num);
+      break;
+    case WStype_CONNECTED:
+      {
+        IPAddress ip = webSocket.remoteIP(num);
+        Serial.printf("[%u] Connected from %d.%d.%d.%d\n", num, ip[0], ip[1], ip[2], ip[3]);
+      }
+      break;
+    case WStype_TEXT:
+      // Forward the received command to Arduino
+      char single = payload[0];
+      Serial1.write(single);  // Send only the command
+      webSocket.sendTXT(num, "Command sent: " + String(single));
+      break;
+  }
+}
+
+// void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+//   switch(type) {
+//     case WStype_DISCONNECTED:
+//       Serial.printf("[%u] Disconnected!\n", num);
+//       break;
+//     case WStype_CONNECTED:
+//       {
+//         IPAddress ip = webSocket.remoteIP(num);
+//         Serial.printf("[%u] Connected from %d.%d.%d.%d\n", num, ip[0], ip[1], ip[2], ip[3]);
+//       }
+//       break;
+//     case WStype_TEXT:
+//       // Forward the received command to Arduino
+//       Serial1.write(payload, length);
+//       Serial1.println(); // Send a newline to indicate end of command
+      
+//       // Send acknowledgment back to client
+//       webSocket.sendTXT(num, "Command received");
+//       break;
+//   }
+// }
+
+
+void configInitCamera() {
+  camera_config_t config;
+  config.ledc_channel = LEDC_CHANNEL_0;
+  config.ledc_timer = LEDC_TIMER_0;
+  config.pin_d0 = Y2_GPIO_NUM;
+  config.pin_d1 = Y3_GPIO_NUM;
+  config.pin_d2 = Y4_GPIO_NUM;
+  config.pin_d3 = Y5_GPIO_NUM;
+  config.pin_d4 = Y6_GPIO_NUM;
+  config.pin_d5 = Y7_GPIO_NUM;
+  config.pin_d6 = Y8_GPIO_NUM;
+  config.pin_d7 = Y9_GPIO_NUM;
+  config.pin_xclk = XCLK_GPIO_NUM;
+  config.pin_pclk = PCLK_GPIO_NUM;
+  config.pin_vsync = VSYNC_GPIO_NUM;
+  config.pin_href = HREF_GPIO_NUM;
+  config.pin_sscb_sda = SIOD_GPIO_NUM;
+  config.pin_sscb_scl = SIOC_GPIO_NUM;
+  config.pin_pwdn = PWDN_GPIO_NUM;
+  config.pin_reset = RESET_GPIO_NUM;
+  config.xclk_freq_hz = 20000000;
+  config.pixel_format = PIXFORMAT_JPEG;
+  config.frame_size = FRAMESIZE_VGA;
+  config.jpeg_quality = 10;
+  config.fb_count = 2;
+
+  esp_err_t err = esp_camera_init(&config);
+  if (err != ESP_OK) {
+    Serial.printf("Camera init failed: 0x%x", err);
+    ESP.restart();
+  }
+}
+
+void handleStream() {
+  WiFiClient client = server.client();
+  String response = "HTTP/1.1 200 OK\r\n";
+  response += "Content-Type: multipart/x-mixed-replace; boundary=frame\r\n\r\n";
+  client.print(response);
+
+  while (client.connected()) {
+    camera_fb_t * fb = esp_camera_fb_get();
+    if (!fb) continue;
+
+    client.print("--frame\r\nContent-Type: image/jpeg\r\n\r\n");
+    client.write(fb->buf, fb->len);
+    client.print("\r\n");
+
+    esp_camera_fb_return(fb);
+
+    if (Serial.available()) {
+      String response = Serial.readStringUntil('\n');
+      webSocket.broadcastTXT(response.c_str(), response.length());
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(BAUD_RATE);
+  Serial1.begin(9600, SERIAL_8N1, 15, 14);
+  configInitCamera();
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) delay(500);
+
+  server.on("/", HTTP_GET, []() {
+    server.send(200, "text/html", index_html);
+  });
+  server.on("/stream", HTTP_GET, handleStream);
+
+  server.begin();
+  webSocket.begin();
+  webSocket.onEvent(webSocketEvent);
+}
+
+void loop() {
+  server.handleClient();
+  webSocket.loop();
+
+  if (Serial.available()) {
+    String arduinoResponse = Serial.readStringUntil('\n');
+    webSocket.broadcastTXT(arduinoResponse.c_str(), arduinoResponse.length());
+  }
+}
