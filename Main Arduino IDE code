@@ -1,0 +1,205 @@
+#include <Arduino.h>
+#include <SoftwareSerial.h>
+#include <DHT.h>
+#include <MD_Parola.h>
+#include <MD_MAX72XX.h>
+#include <SPI.h>
+
+// ESP32 communication
+SoftwareSerial espSerial(2, 4); // RX, TX
+
+// Motor control pins
+#define enA 10
+#define in1 9
+#define in2 8
+#define in3 7
+#define in4 6
+#define enB 5
+
+// IR Sensor pins
+#define ir_R A0
+#define ir_F A1
+#define ir_L A2
+
+// Servo
+#define servoPin A4
+
+// DHT11
+#define DHTPIN A5
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
+
+// LED Matrix
+#define DIN_PIN 11
+#define CS_PIN 3
+#define CLK_PIN 13
+MD_Parola display = MD_Parola(MD_MAX72XX::FC16_HW, CS_PIN, 1);
+
+int Speed = 160;
+int s1, s2, s3;
+bool isAutoMode = false;
+
+void forward() {
+  digitalWrite(in1, HIGH); digitalWrite(in2, LOW);
+  digitalWrite(in3, LOW);  digitalWrite(in4, HIGH);
+}
+
+void backward() {
+  digitalWrite(in1, LOW);  digitalWrite(in2, HIGH);
+  digitalWrite(in3, HIGH); digitalWrite(in4, LOW);
+}
+
+void turnRight() {
+  digitalWrite(in1, LOW);  digitalWrite(in2, HIGH);
+  digitalWrite(in3, LOW);  digitalWrite(in4, HIGH);
+}
+
+void turnLeft() {
+  digitalWrite(in1, HIGH); digitalWrite(in2, LOW);
+  digitalWrite(in3, HIGH); digitalWrite(in4, LOW);
+}
+
+void Stop() {
+  digitalWrite(in1, LOW); digitalWrite(in2, LOW);
+  digitalWrite(in3, LOW); digitalWrite(in4, LOW);
+  Serial.write('S');
+}
+
+void servoPulse(int pin, int angle) {
+  int pwm = (angle * 11) + 500;
+  digitalWrite(pin, HIGH);
+  delayMicroseconds(pwm);
+  digitalWrite(pin, LOW);
+  delay(20);
+}
+
+void displayTemperature() {
+  float temp = dht.readTemperature();
+  String message;
+  if (isnan(temp)) {
+    message = "Err";
+  } else {
+    message = String((int)temp) + "C";
+  }
+  display.displayClear();
+  display.displayScroll(message.c_str(), PA_CENTER, PA_SCROLL_LEFT, 100);
+  while (!display.displayAnimate()) {}
+  delay(1000);
+}
+
+void setup() {
+  Serial.begin(9600);      // Arduino 2
+  espSerial.begin(9600);   // ESP32
+
+  pinMode(ir_R, INPUT);
+  pinMode(ir_F, INPUT);
+  pinMode(ir_L, INPUT);
+  pinMode(enA, OUTPUT);
+  pinMode(in1, OUTPUT);
+  pinMode(in2, OUTPUT);
+  pinMode(in3, OUTPUT);
+  pinMode(in4, OUTPUT);
+  pinMode(enB, OUTPUT);
+  pinMode(servoPin, OUTPUT);
+
+  analogWrite(enA, Speed);
+  analogWrite(enB, Speed);
+  delay(300);
+
+  dht.begin();
+  display.begin();
+  display.setIntensity(5);
+  display.displayClear();
+  display.displayScroll("Initializing", PA_CENTER, PA_SCROLL_LEFT, 100);
+  while (!display.displayAnimate()) {}
+  delay(500);
+
+  for (int angle = 90; angle <= 140; angle += 5) servoPulse(servoPin, angle);
+  for (int angle = 140; angle >= 40; angle -= 5) servoPulse(servoPin, angle);
+  for (int angle = 40; angle <= 90; angle += 5) servoPulse(servoPin, angle);
+
+  espSerial.println("Arduino Ready");
+}
+
+void loop() {
+  if (espSerial.available()) {
+    char command = espSerial.read();
+    while (espSerial.available()) espSerial.read();
+
+    if (command == 'M') {
+      isAutoMode = !isAutoMode;
+      espSerial.println(isAutoMode ? "Auto Mode ON" : "Manual Mode ON");
+    }
+
+    if (!isAutoMode) {
+      manualControl(command);
+    }
+  }
+
+  if (isAutoMode) {
+    autoControl();
+  }
+
+  displayTemperature();
+}
+
+void manualControl(char command) {
+  switch (command) {
+    case 'W': forward(); break;
+    case 'S': backward(); break;
+    case 'A': turnLeft(); break;
+    case 'D': turnRight(); break;
+    case 'P': Serial.write('P'); break;
+    case 'K': Serial.write('K'); break;
+    case 'X': Stop(); break;
+    default: espSerial.println("Invalid Command");
+  }
+}
+
+void autoControl() {
+  s1 = analogRead(ir_R);
+  s2 = analogRead(ir_F);
+  s3 = analogRead(ir_L);
+
+  espSerial.print("IR_R: "); espSerial.print(s1);
+  espSerial.print(" IR_F: "); espSerial.print(s2);
+  espSerial.print(" IR_L: "); espSerial.println(s3);
+  delay(50);
+
+  if (s1 < 250) {
+    Stop();
+    Serial.write('P');
+    for (int angle = 90; angle >= 40; angle -= 3) servoPulse(servoPin, angle);
+    for (int angle = 40; angle <= 90; angle += 3) servoPulse(servoPin, angle);
+    Serial.write('K');
+  } else if (s2 < 350) {
+    Stop();
+    Serial.write('P');
+    for (int angle = 90; angle <= 140; angle += 3) servoPulse(servoPin, angle);
+    for (int angle = 140; angle >= 40; angle -= 3) servoPulse(servoPin, angle);
+    for (int angle = 40; angle <= 90; angle += 3) servoPulse(servoPin, angle);
+    Serial.write('K');
+  } else if (s3 < 250) {
+    Stop();
+    Serial.write('P');
+    for (int angle = 90; angle <= 140; angle += 3) servoPulse(servoPin, angle);
+    for (int angle = 140; angle >= 90; angle -= 3) servoPulse(servoPin, angle);
+    Serial.write('K');
+  } else if (s1 >= 251 && s1 <= 700) {
+    Serial.write('K');
+    forward(); delay(100);
+    turnLeft(); delay(200);
+  } else if (s2 >= 251 && s2 <= 800) {
+    Serial.write('K');
+    backward();
+  } else if (s3 >= 251 && s3 <= 700) {
+    Serial.write('K');
+    forward(); delay(100);
+    turnRight(); delay(200);
+  } else {
+    Serial.write('K');
+    Stop();
+  }
+
+  delay(10);
+}
